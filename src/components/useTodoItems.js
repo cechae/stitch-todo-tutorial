@@ -69,7 +69,6 @@ const todoReducer = (state, { type, payload }) => {
     }
   }
 };
-
 export function useTodoItems(userId) {
   //
   const [state, dispatch] = React.useReducer(todoReducer, { todos: [] });

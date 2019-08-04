@@ -1,10 +1,14 @@
-import React from "react";
+import React, {useEffect} from "react";
 import PropTypes from "prop-types";
 import {
   hasLoggedInUser,
   loginAnonymous,
   logoutCurrentUser,
   getCurrentUser,
+  addAuthenticationListener,
+  removeAuthenticationListener,
+  loginGoogle,
+  handleOAuthRedirects,
 } from "./../stitch/authentication";
 
 // Create a React Context that lets us expose and access auth state
@@ -27,19 +31,42 @@ export function StitchAuthProvider(props) {
     isLoggedIn: hasLoggedInUser(),
     currentUser: getCurrentUser(),
   });
-
+  useEffect(() => {
+    const authListener = {
+        onUserLoggedIn: (auth, loggedInUser) => {
+        if (loggedInUser) {
+            setAuthState(authState => ({
+            ...authState,
+            isLoggedIn: true,
+            currentUser: loggedInUser,
+            }));
+        }
+        },
+        onUserLoggedOut: (auth, loggedOutUser) => {
+        setAuthState(authState => ({
+            ...authState,
+            isLoggedIn: false,
+            currentUser: null,
+        }));
+        }
+    };
+    addAuthenticationListener(authListener);
+    handleOAuthRedirects();
+    setAuthState(state => ({ ...state}));
+    return () => {
+        removeAuthenticationListener(authListener);
+    };
+}, []);
   // Authentication Actions
-  const handleAnonymousLogin = async () => {
-    const { isLoggedIn } = authState;
-    if (!isLoggedIn) {
-      const loggedInUser = await loginAnonymous();
-      setAuthState({
-        ...authState,
-        isLoggedIn: true,
-        currentUser: loggedInUser,
-      });
+  const handleLogin = async (provider) => {
+    if (!authState.isLoggedIn) {
+        switch(provider) {
+        case "anonymous": return loginAnonymous()
+        case "google": return loginGoogle()
+        default: {}
+        }
     }
-  };
+  }
   const handleLogout = async () => {
     const { isLoggedIn } = authState;
     if (isLoggedIn) {
@@ -61,7 +88,7 @@ export function StitchAuthProvider(props) {
       const value = {
         isLoggedIn,
         currentUser,
-        actions: { handleAnonymousLogin, handleLogout },
+        actions: { handleLogin, handleLogout },
       };
       return value;
     },
